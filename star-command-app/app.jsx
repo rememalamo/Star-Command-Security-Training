@@ -1,0 +1,1138 @@
+/* eslint-disable */
+const { useState, useEffect, useRef } = React;
+
+/* =====================================================
+   STAR COMMAND: SECURITY RANGER — v4 (static, no API)
+   6 certifications in order: CySA+ → SC-300 → SC-200 → AZ-500 → SC-100 → SecAI+
+   All content ships as pre-populated packs in /packs (window.PACKS).
+   ===================================================== */
+
+const TRACK_ORDER = ["cysa", "sc300", "sc200", "az500", "sc100", "secai"];
+const TRACKS = {
+  cysa: { name: "CySA+", exam: "CS0-004 (V4)", full: "CompTIA CySA+ · Cybersecurity Analyst", color: "#3E9B4F" },
+  sc300: { name: "SC-300", exam: "SC-300", full: "Microsoft Identity & Access Administrator", color: "#0F7B7B" },
+  sc200: { name: "SC-200", exam: "SC-200", full: "Microsoft Security Operations Analyst", color: "#6A3FA0" },
+  az500: { name: "AZ-500", exam: "AZ-500", full: "Microsoft Azure Security Engineer", color: "#2E6DB4" },
+  sc100: { name: "SC-100", exam: "SC-100", full: "Microsoft Cybersecurity Architect", color: "#B4482E" },
+  secai: { name: "SecAI+", exam: "CY0-001 (V1)", full: "CompTIA SecAI+ · AI Security", color: "#C8901A" },
+};
+
+/* 23 domains — official 2026 blueprints, verified. */
+const CURRICULUM = [
+  /* CySA+ V4 (4) */
+  { id: "cysa-ops", track: "cysa", weight: "34%", domain: "Security Operations",
+    villain: "The Hornet Swarm", villainDesc: "Zurg's drones flood sector telemetry with attacks hidden in the noise.",
+    topics: [
+      { id: "cysa-ops-1", name: "Log analysis & indicators of malicious activity" },
+      { id: "cysa-ops-2", name: "MITRE ATT&CK, threat intel & threat hunting" },
+      { id: "cysa-ops-3", name: "Network & endpoint telemetry analysis" },
+      { id: "cysa-ops-4", name: "SIEM/EDR detection engineering & tuning" },
+      { id: "cysa-ops-5", name: "Email, web & identity threat analysis" },
+    ]},
+  { id: "cysa-vuln", track: "cysa", weight: "26%", domain: "Vulnerability Management",
+    villain: "The Grubs", villainDesc: "Zurg's engineers catalog every weakness in the Alliance's hulls before the fleet can patch.",
+    topics: [
+      { id: "cysa-vuln-1", name: "Scanning concepts & scan interpretation" },
+      { id: "cysa-vuln-2", name: "CVSS & risk-based prioritization" },
+      { id: "cysa-vuln-3", name: "Remediation, mitigation & exceptions" },
+      { id: "cysa-vuln-4", name: "Attack surface & secure configuration" },
+      { id: "cysa-vuln-5", name: "Software & web application vulnerabilities" },
+    ]},
+  { id: "cysa-ir", track: "cysa", weight: "24%", domain: "Incident Response & Management",
+    villain: "Torque", villainDesc: "The multiplying outlaw tears through Alliance outposts — every response call matters.",
+    topics: [
+      { id: "cysa-ir-1", name: "IR lifecycle & preparation" },
+      { id: "cysa-ir-2", name: "Detection, analysis & scoping" },
+      { id: "cysa-ir-3", name: "Containment, eradication & recovery" },
+      { id: "cysa-ir-4", name: "Forensics & evidence handling" },
+      { id: "cysa-ir-5", name: "Post-incident activity & lessons learned" },
+    ]},
+  { id: "cysa-rep", track: "cysa", weight: "16%", domain: "Reporting & Communication",
+    villain: "Crumford Lorak", villainDesc: "The galaxy's slipperiest informant twists every narrative — precision reporting beats him.",
+    topics: [
+      { id: "cysa-rep-1", name: "Audience-appropriate reporting" },
+      { id: "cysa-rep-2", name: "Security metrics & KPIs" },
+      { id: "cysa-rep-3", name: "Stakeholder & incident communication" },
+      { id: "cysa-rep-4", name: "Vulnerability & compliance reporting" },
+      { id: "cysa-rep-5", name: "Root cause & after-action reports" },
+    ]},
+
+  /* SC-300 (4) */
+  { id: "sc3-users", track: "sc300", weight: "20–25%", domain: "Implement & Manage User Identities",
+    villain: "Rentwhistle Swack", villainDesc: "The con man of the cosmos is minting fake identities across the tenant.",
+    topics: [
+      { id: "sc3-users-1", name: "Tenant configuration, roles & administrative units" },
+      { id: "sc3-users-2", name: "Users, groups, dynamic membership & licensing" },
+      { id: "sc3-users-3", name: "External identities: B2B & cross-tenant access" },
+      { id: "sc3-users-4", name: "Hybrid identity: Entra Connect, PHS/PTA, cloud sync" },
+      { id: "sc3-users-5", name: "Custom domains & device identity" },
+    ]},
+  { id: "sc3-auth", track: "sc300", weight: "25–30%", domain: "Implement Authentication & Access Management",
+    villain: "Feara", villainDesc: "The nightmare entity feeds on weak authentication — starve her with strong auth.",
+    topics: [
+      { id: "sc3-auth-1", name: "MFA & authentication methods (FIDO2, TAP, CBA)" },
+      { id: "sc3-auth-2", name: "SSPR & password protection" },
+      { id: "sc3-auth-3", name: "Conditional Access design, testing & troubleshooting" },
+      { id: "sc3-auth-4", name: "Entra ID Protection: user & sign-in risk" },
+      { id: "sc3-auth-5", name: "Entra roles vs Azure RBAC & secure access basics" },
+    ]},
+  { id: "sc3-workload", track: "sc300", weight: "20–25%", domain: "Plan & Implement Workload Identities",
+    villain: "Vartkes", villainDesc: "The arms dealer traffics stolen app secrets and over-consented permissions.",
+    topics: [
+      { id: "sc3-workload-1", name: "App registrations & enterprise applications" },
+      { id: "sc3-workload-2", name: "Permissions, consent & admin consent workflow" },
+      { id: "sc3-workload-3", name: "SSO: SAML, OIDC & OAuth flows" },
+      { id: "sc3-workload-4", name: "Managed identities & service principals" },
+      { id: "sc3-workload-5", name: "App Proxy, private access & app governance" },
+    ]},
+  { id: "sc3-gov", track: "sc300", weight: "20–25%", domain: "Plan & Implement Identity Governance",
+    villain: "The Valkyran Raiders", villainDesc: "Raiders plunder every ungoverned entitlement they can find.",
+    topics: [
+      { id: "sc3-gov-1", name: "Entitlement management & access packages" },
+      { id: "sc3-gov-2", name: "Access reviews" },
+      { id: "sc3-gov-3", name: "Privileged Identity Management (PIM)" },
+      { id: "sc3-gov-4", name: "Lifecycle workflows & provisioning" },
+      { id: "sc3-gov-5", name: "Monitoring identity: sign-in/audit logs & workbooks" },
+    ]},
+
+  /* SC-200 (3) */
+  { id: "sc2-env", track: "sc200", weight: "40–45%", domain: "Manage a Security Operations Environment",
+    villain: "XL", villainDesc: "The rogue robot rebuilds himself from your own SOC infrastructure.",
+    topics: [
+      { id: "sc2-env-1", name: "Defender XDR settings & custom detections" },
+      { id: "sc2-env-2", name: "Sentinel workspace design & administration" },
+      { id: "sc2-env-3", name: "Data connectors & ingestion (AMA, DCR, Syslog/CEF)" },
+      { id: "sc2-env-4", name: "Analytics rules & detection coverage" },
+      { id: "sc2-env-5", name: "Automation: rules, playbooks & attack disruption" },
+    ]},
+  { id: "sc2-resp", track: "sc200", weight: "35–40%", domain: "Respond to Security Incidents",
+    villain: "NOS-4-A2", villainDesc: "The energy vampire drains accounts and endpoints across the sector.",
+    topics: [
+      { id: "sc2-resp-1", name: "Incident triage & case management" },
+      { id: "sc2-resp-2", name: "Endpoint response actions (MDE)" },
+      { id: "sc2-resp-3", name: "Email & identity remediation (MDO, Entra, MDI)" },
+      { id: "sc2-resp-4", name: "Cloud workload & app response" },
+      { id: "sc2-resp-5", name: "Multi-stage attack investigation" },
+    ]},
+  { id: "sc2-hunt", track: "sc200", weight: "20–25%", domain: "Perform Threat Hunting",
+    villain: "Warp Darkmatter", villainDesc: "Agent Z is embedded inside the Alliance — only disciplined hunting flushes him out.",
+    topics: [
+      { id: "sc2-hunt-1", name: "KQL fundamentals" },
+      { id: "sc2-hunt-2", name: "Advanced hunting in Defender XDR" },
+      { id: "sc2-hunt-3", name: "Hunting in Microsoft Sentinel" },
+      { id: "sc2-hunt-4", name: "Threat intelligence & MDTI" },
+      { id: "sc2-hunt-5", name: "UEBA, anomalies & hypothesis design" },
+    ]},
+
+  /* AZ-500 (4) */
+  { id: "az5-id", track: "az500", weight: "15–20%", domain: "Secure Identity & Access",
+    villain: "The Raenoks", villainDesc: "Brute raiders hammer every identity door in Azure — lock them all.",
+    topics: [
+      { id: "az5-id-1", name: "Entra ID for Azure: roles, PIM & MFA for resources" },
+      { id: "az5-id-2", name: "Conditional Access for Azure management" },
+      { id: "az5-id-3", name: "Azure RBAC: built-in & custom roles, scope" },
+      { id: "az5-id-4", name: "Enterprise app access & OAuth grants in Azure" },
+      { id: "az5-id-5", name: "Managed identities & Key Vault access models" },
+    ]},
+  { id: "az5-net", track: "az500", weight: "20–25%", domain: "Secure Networking",
+    villain: "Zurg's Fighter Drones", villainDesc: "Swarms probe every open port in the virtual network.",
+    topics: [
+      { id: "az5-net-1", name: "NSGs, ASGs & service tags" },
+      { id: "az5-net-2", name: "Azure Firewall, Firewall Manager & policies" },
+      { id: "az5-net-3", name: "Private access: Private Link/Endpoints, service endpoints" },
+      { id: "az5-net-4", name: "Bastion, JIT VM access & secure remote admin" },
+      { id: "az5-net-5", name: "WAF, DDoS Protection & TLS for apps" },
+    ]},
+  { id: "az5-compute", track: "az500", weight: "20–25%", domain: "Secure Compute, Storage & Databases",
+    villain: "The Trade World Scavengers", villainDesc: "Scavengers strip unencrypted disks and open storage for parts.",
+    topics: [
+      { id: "az5-compute-1", name: "VM security: disk encryption, updates & hardening" },
+      { id: "az5-compute-2", name: "Container & AKS security" },
+      { id: "az5-compute-3", name: "Storage security: access, soft delete & immutability" },
+      { id: "az5-compute-4", name: "Database security: SQL auth, auditing & Always Encrypted" },
+      { id: "az5-compute-5", name: "Key Vault: keys, secrets, certificates & rotation" },
+    ]},
+  { id: "az5-ops", track: "az500", weight: "30–35%", domain: "Secure Azure w/ Defender for Cloud & Sentinel",
+    villain: "Zurg's Dreadnought Vanguard", villainDesc: "The vanguard tests your cloud defenses fleet-wide — posture and detection decide the battle.",
+    topics: [
+      { id: "az5-ops-1", name: "Defender for Cloud: CSPM, secure score & compliance" },
+      { id: "az5-ops-2", name: "Defender workload protection plans" },
+      { id: "az5-ops-3", name: "Azure Monitor, DCRs & security data collection" },
+      { id: "az5-ops-4", name: "Sentinel for Azure: rules, incidents & automation" },
+      { id: "az5-ops-5", name: "Azure Policy & governance for security" },
+    ]},
+
+  /* SC-100 (4) */
+  { id: "sc1-bp", track: "sc100", weight: "20–25%", domain: "Design Solutions Aligned w/ Best Practices & Priorities",
+    villain: "Gravitina", villainDesc: "The mistress of gravity bends whole strategies to her will.",
+    topics: [
+      { id: "sc1-bp-1", name: "Zero Trust & Microsoft frameworks (MCRA, CAF, WAF)" },
+      { id: "sc1-bp-2", name: "Security strategy from business requirements" },
+      { id: "sc1-bp-3", name: "Resilience: ransomware & BCDR strategy" },
+      { id: "sc1-bp-4", name: "Exposure management & attack path analysis" },
+      { id: "sc1-bp-5", name: "Measuring & prioritizing security posture" },
+    ]},
+  { id: "sc1-ops", track: "sc100", weight: "25–30%", domain: "Design SecOps, Identity & Compliance Capabilities",
+    villain: "Shape Stealer", villainDesc: "A shapeshifter impersonates rangers fleet-wide — design identity so stolen shapes get nothing.",
+    topics: [
+      { id: "sc1-ops-1", name: "SecOps architecture: SIEM, SOAR & XDR design" },
+      { id: "sc1-ops-2", name: "Identity architecture with Microsoft Entra" },
+      { id: "sc1-ops-3", name: "Privileged access strategy (tiering, PAW, RaMP)" },
+      { id: "sc1-ops-4", name: "Regulatory compliance design (Purview)" },
+      { id: "sc1-ops-5", name: "Detection coverage & monitoring strategy" },
+    ]},
+  { id: "sc1-infra", track: "sc100", weight: "25–30%", domain: "Design Security Solutions for Infrastructure",
+    villain: "Wirewolf", villainDesc: "The wirewolf virus corrupts infrastructure system by system.",
+    topics: [
+      { id: "sc1-infra-1", name: "Server & endpoint security baselines" },
+      { id: "sc1-infra-2", name: "Network security & Security Service Edge" },
+      { id: "sc1-infra-3", name: "Hybrid & multicloud posture (CSPM/CWPP)" },
+      { id: "sc1-infra-4", name: "AD DS & domain controller hardening" },
+      { id: "sc1-infra-5", name: "IoT/OT & specialized workload security" },
+    ]},
+  { id: "sc1-app", track: "sc100", weight: "20–25%", domain: "Design Security Solutions for Applications & Data",
+    villain: "Natron", villainDesc: "The ancient tyrant covets the Alliance's data vaults.",
+    topics: [
+      { id: "sc1-app-1", name: "Secure SDLC & DevSecOps design" },
+      { id: "sc1-app-2", name: "Application security architecture" },
+      { id: "sc1-app-3", name: "Data classification & protection design" },
+      { id: "sc1-app-4", name: "Securing data platforms" },
+      { id: "sc1-app-5", name: "Encryption & key management strategy" },
+    ]},
+
+  /* SecAI+ (4) */
+  { id: "ai-con", track: "secai", weight: "17%", domain: "Basic AI Concepts Related to Cybersecurity",
+    villain: "The Heed", villainDesc: "A hive-mind absorbs every unprotected model in the quadrant.",
+    topics: [
+      { id: "ai-con-1", name: "AI/ML fundamentals & model training" },
+      { id: "ai-con-2", name: "Prompt engineering & LLM mechanics" },
+      { id: "ai-con-3", name: "Data security for AI" },
+      { id: "ai-con-4", name: "AI threat taxonomy" },
+      { id: "ai-con-5", name: "AI-enabled attacks & AI in the security stack" },
+    ]},
+  { id: "ai-sec", track: "secai", weight: "40%", domain: "Securing AI Systems",
+    villain: "Evil Buzz", villainDesc: "An adversarial copy of the Alliance's finest probes your models for weakness.",
+    topics: [
+      { id: "ai-sec-1", name: "Secure AI life cycle & training pipelines" },
+      { id: "ai-sec-2", name: "Model, gateway & access controls" },
+      { id: "ai-sec-3", name: "Prompt injection & LLM app defense" },
+      { id: "ai-sec-4", name: "AI threat modeling (OWASP LLM/ML, ATLAS)" },
+      { id: "ai-sec-5", name: "Monitoring, auditing & red-teaming AI" },
+    ]},
+  { id: "ai-asst", track: "secai", weight: "24%", domain: "AI-Assisted Security",
+    villain: "The Brain Pods", villainDesc: "Zurg's captive scientists automate his evil — automate defense better.",
+    topics: [
+      { id: "ai-asst-1", name: "AI for detection, triage & enrichment" },
+      { id: "ai-asst-2", name: "Using AI to automate security tasks" },
+      { id: "ai-asst-3", name: "Validating AI-generated content" },
+      { id: "ai-asst-4", name: "Automation boundaries & human oversight" },
+      { id: "ai-asst-5", name: "Evaluating AI security tooling" },
+    ]},
+  { id: "ai-grc", track: "secai", weight: "19%", domain: "AI Governance, Risk & Compliance",
+    villain: "Norbert Klerm", villainDesc: "The corporate schemer exploits every governance gap in the galaxy.",
+    topics: [
+      { id: "ai-grc-1", name: "NIST AI RMF" },
+      { id: "ai-grc-2", name: "AI regulations & standards (EU AI Act)" },
+      { id: "ai-grc-3", name: "AI privacy & data protection" },
+      { id: "ai-grc-4", name: "Bias, fairness, explainability & ethics" },
+      { id: "ai-grc-5", name: "AI policy, acceptable use & audit" },
+    ]},
+];
+
+const domainsFor = (t) => CURRICULUM.filter((d) => d.track === t);
+const findTopic = (id) => { for (const d of CURRICULUM) { const t = d.topics.find((x) => x.id === id); if (t) return { d, t }; } return null; };
+const packFor = (domId) => (window.PACKS && window.PACKS[domId]) || null;
+const CORE = () => (window.PACKS && window.PACKS.__core) || {};
+
+/* ============ Ranks: one per completed cert ============ */
+const RANKS = [
+  "Cyber Cadet", "SOC Space Ace", "Threat Navigator", "Network Pilot",
+  "Vulnerability Scout", "Incident Ranger 1st Class", "Cosmic Security Commando", "Galactic Security Engineer",
+];
+const certsCompleted = (prog) => TRACK_ORDER.filter((t) => certPct(t, prog) >= 100).length;
+const rankName = (prog) => prog.zurgDefeated ? RANKS[7] : RANKS[Math.min(6, certsCompleted(prog))];
+
+/* ============ Readiness ============
+   Domain: topics 60% + PBQ Lab 20% + domain field mission 20% (>=80 = full credit).
+   Cert: capped at 99% until its CERT TRIAL boss is defeated (>=80), then 100%. */
+const domainPct = (dom, prog) => {
+  const m = dom.topics.filter((t) => prog.mastered[t.id]).length / dom.topics.length;
+  const pbq = Math.min(1, (prog.pbq[dom.id] || 0) / 80);
+  const boss = Math.min(1, (prog.boss[dom.id] || 0) / 80);
+  return Math.round(m * 60 + pbq * 20 + boss * 20);
+};
+function certPct(track, prog) {
+  const ds = domainsFor(track);
+  const base = Math.round(ds.reduce((s, d) => s + domainPct(d, prog), 0) / ds.length);
+  if (base >= 100) return (prog.certBoss[track] || 0) >= 80 ? 100 : 99;
+  return Math.min(base, 98);
+}
+const certBossUnlocked = (track, prog) => domainsFor(track).every((d) => domainPct(d, prog) >= 100);
+const allCertsReady = (prog) => TRACK_ORDER.every((t) => certPct(t, prog) >= 100);
+const bandFor = (p) =>
+  p >= 90 ? { label: "Exam Ready", c: "#3E9B4F" } :
+  p >= 70 ? { label: "Strong", c: "#2E6DB4" } :
+  p >= 40 ? { label: "Developing", c: "#C8901A" } : { label: "Foundations", c: "#7A8699" };
+
+const shuffle = (a) => { const x = [...a]; for (let i = x.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [x[i], x[j]] = [x[j], x[i]]; } return x; };
+
+/* ============ Persistence (auto-save to localStorage) ============ */
+const SAVE_KEY = "star-command-save-v4";
+const DEFAULT_PROG = { mastered: {}, lessonsRead: {}, pbq: {}, boss: {}, certBoss: {}, zurgDefeated: false, xp: 0, streak: 0, bestStreak: 0, sound: true };
+const loadProg = () => { try { const s = localStorage.getItem(SAVE_KEY); return s ? { ...DEFAULT_PROG, ...JSON.parse(s) } : { ...DEFAULT_PROG }; } catch (e) { return { ...DEFAULT_PROG }; } };
+const saveProg = (p) => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(p)); } catch (e) {} };
+
+/* ============ Sound FX (WebAudio synth — no files needed) ============ */
+const SFX = (() => {
+  let ctx = null; let enabled = true;
+  const ac = () => { if (!ctx) { const C = window.AudioContext || window.webkitAudioContext; if (C) ctx = new C(); } if (ctx && ctx.state === "suspended") ctx.resume(); return ctx; };
+  const tone = (freq, dur, type = "square", vol = 0.06, sweepTo = null, when = 0) => {
+    const c = ac(); if (!c || !enabled) return;
+    const t0 = c.currentTime + when;
+    const o = c.createOscillator(); const g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t0);
+    if (sweepTo) o.frequency.exponentialRampToValueAtTime(Math.max(30, sweepTo), t0 + dur);
+    g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+  };
+  const noise = (dur, vol = 0.05, when = 0) => {
+    const c = ac(); if (!c || !enabled) return;
+    const t0 = c.currentTime + when;
+    const buf = c.createBuffer(1, c.sampleRate * dur, c.sampleRate);
+    const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    const src = c.createBufferSource(); src.buffer = buf;
+    const g = c.createGain(); g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    const f = c.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 900;
+    src.connect(f); f.connect(g); g.connect(c.destination); src.start(t0);
+  };
+  return {
+    setEnabled: (v) => { enabled = v; },
+    click: () => tone(520, 0.05, "square", 0.03),
+    blaster: () => tone(900, 0.16, "sawtooth", 0.06, 140),          // pew!
+    hit: () => { tone(160, 0.2, "square", 0.06, 60); noise(0.15, 0.04); },
+    correct: () => { tone(660, 0.09, "square", 0.05); tone(880, 0.12, "square", 0.05, null, 0.09); },
+    wrong: () => tone(220, 0.25, "sawtooth", 0.05, 110),
+    rocket: () => { noise(0.6, 0.06); tone(80, 0.6, "sawtooth", 0.04, 220); },  // launch
+    fanfare: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, "square", 0.05, null, i * 0.12)); },
+    zurgDown: () => { tone(1047, 0.15, "square", 0.06); tone(784, 0.15, "square", 0.06, null, 0.14); tone(1047, 0.15, "square", 0.06, null, 0.28); tone(1319, 0.4, "square", 0.06, null, 0.42); noise(0.5, 0.05, 0.42); },
+  };
+})();
+
+/* ============ SHARED UI ============ */
+function Gauge({ pct, color, segments = 25, h = 13 }) {
+  const lit = Math.round((pct / 100) * segments);
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 3 }}>
+        {Array.from({ length: segments }).map((_, i) => (
+          <div key={i} style={{ flex: 1, height: h, borderRadius: 2, background: i < lit ? color : "#E3E8EF",
+            boxShadow: i < lit ? "0 0 6px " + color + "66" : "none", transition: "background .4s" }} />
+        ))}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+        {[0, 40, 70, 99].map((t) => (
+          <span key={t} className="mono" style={{ fontSize: 9, color: pct >= t && t > 0 ? color : "#A6B0C0" }}>{t}</span>
+        ))}
+        <span className="mono" style={{ fontSize: 9, color: pct >= 100 ? "#3E9B4F" : "#A6B0C0" }}>100</span>
+      </div>
+    </div>
+  );
+}
+function Bar({ pct, color, h = 6 }) {
+  return <div style={{ height: h, background: "#E3E8EF", borderRadius: 3, overflow: "hidden" }}>
+    <div style={{ width: Math.max(0, Math.min(100, pct)) + "%", height: "100%", background: color, transition: "width .5s" }} />
+  </div>;
+}
+function Evidence({ text, color = "#6A3FA0" }) {
+  if (!text) return null;
+  return <pre className="mono" style={{ background: "#1B1430", border: "1px solid #2E2450",
+    borderLeft: "3px solid " + color, borderRadius: 6, padding: 12, fontSize: 12, lineHeight: 1.7,
+    color: "#B6F09C", whiteSpace: "pre-wrap", overflowX: "auto", margin: "10px 0 14px" }}>{text}</pre>;
+}
+function MissingPack({ dom, onBack }) {
+  return (
+    <div className="panel" style={{ padding: 24, maxWidth: 620, margin: "30px auto", textAlign: "center" }}>
+      <div style={{ fontSize: 34 }}>📡</div>
+      <div style={{ fontSize: 20, fontWeight: 700, margin: "8px 0 4px" }}>{dom.domain}</div>
+      <div className="mono" style={{ fontSize: 11, color: "#C8901A", marginBottom: 12 }}>CONTENT PACK NOT YET INSTALLED</div>
+      <div style={{ fontSize: 14, lineHeight: 1.65, color: "#4A5568", marginBottom: 14 }}>
+        This domain's 50-question training package hasn't been delivered yet. Ask Claude:
+        <b> "Write the content pack for {dom.domain} ({dom.id})"</b> — drop the file into <span className="mono">packs/</span>, add a script tag in <span className="mono">index.html</span>, and it lights up.
+      </div>
+      <button className="btn" style={{ width: "auto" }} onClick={onBack}>Back to Star Command</button>
+    </div>
+  );
+}
+
+/* ============ APP ============ */
+function App() {
+  const [prog, setProg] = useState(loadProg);
+  const [screen, setScreen] = useState({ view: "hub" });
+  useEffect(() => { saveProg(prog); SFX.setEnabled(prog.sound); }, [prog]);
+  const update = (fn) => setProg((p) => fn({ ...p }));
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#F2F4F8", color: "#1E2430", fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+        * { box-sizing: border-box; }
+        .mono { font-family: 'IBM Plex Mono', monospace; }
+        .panel { background: #FFFFFF; border: 1px solid #DCE2EB; border-radius: 12px; box-shadow: 0 1px 3px rgba(30,36,48,.06); }
+        .btn { cursor: pointer; border: 1px solid #C9D2DF; background: #FFFFFF; color: #1E2430;
+               border-radius: 9px; padding: 10px 14px; font-family: 'Space Grotesk', sans-serif;
+               font-size: 14px; text-align: left; transition: border-color .15s, background .15s; width: 100%; }
+        .btn:hover:not(:disabled) { border-color: #6A3FA0; background: #F7F3FC; }
+        .btn.primary { background: #3E9B4F; border-color: #3E9B4F; color: #fff; font-weight: 700; }
+        .btn.primary:hover:not(:disabled) { background: #35873F; }
+        .btn.ghost { color: #7A8699; }
+        .chip { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px;
+                border-radius: 4px; font-family: 'IBM Plex Mono', monospace; }
+        @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+      `}</style>
+
+      <div style={{ background: "linear-gradient(135deg,#2A1B4A 0%,#3B2566 60%,#2E6DB4 130%)", color: "#fff",
+        padding: "14px 18px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ cursor: "pointer" }} onClick={() => { SFX.click(); setScreen({ view: "hub" }); }}>
+          <div className="mono" style={{ fontSize: 10, letterSpacing: ".28em", color: "#8FE388" }}>GALACTIC ALLIANCE · UNIVERSE PROTECTION UNIT</div>
+          <div style={{ fontSize: 21, fontWeight: 700 }}>STAR COMMAND: SECURITY RANGER</div>
+        </div>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 16, alignItems: "center" }}>
+          <button onClick={() => update((p) => { p.sound = !p.sound; return p; })}
+            style={{ background: "none", border: "1px solid #6A5A94", color: "#C4B6E4", borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 14 }}
+            title="Toggle sound">{prog.sound ? "🔊" : "🔇"}</button>
+          <div style={{ textAlign: "right" }}>
+            <div className="mono" style={{ fontSize: 10, color: "#C4B6E4" }}>STREAK {prog.streak >= 5 ? "🚀" : ""} {prog.streak}</div>
+            <div style={{ fontWeight: 700, color: "#8FE388", fontSize: 14 }}>{rankName(prog)}</div>
+            <div className="mono" style={{ fontSize: 10, color: "#C4B6E4" }}>{certsCompleted(prog)}/6 CERTS · {prog.xp} XP</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 1020, margin: "0 auto", padding: 18 }}>
+        {screen.view === "hub" ? <Hub prog={prog} go={setScreen} update={update} /> :
+         screen.view === "domain" ? <DomainView domId={screen.domId} prog={prog} update={update} go={setScreen} /> :
+         screen.view === "lesson" ? <LessonView topicId={screen.topicId} prog={prog} update={update} go={setScreen} /> :
+         screen.view === "drill" ? <DrillView topicId={screen.topicId} prog={prog} update={update} go={setScreen} /> :
+         screen.view === "pbqlab" ? <PBQLabView domId={screen.domId} prog={prog} update={update} go={setScreen} /> :
+         screen.view === "boss" ? <BossView domId={screen.domId} prog={prog} update={update} go={setScreen} /> :
+         screen.view === "certboss" ? <CertBossView track={screen.track} prog={prog} update={update} go={setScreen} /> :
+         <ZurgView prog={prog} update={update} go={setScreen} />}
+      </div>
+    </div>
+  );
+}
+
+/* ============ HUB ============ */
+function Hub({ prog, go, update }) {
+  const zurgReady = allCertsReady(prog);
+  return (
+    <div>
+      <div className="panel" style={{ padding: "12px 16px", marginBottom: 14, fontSize: 13.5, lineHeight: 1.65, color: "#4A5568" }}>
+        <b style={{ color: "#6A3FA0" }}>Ranger, your flight path:</b> CySA+ → SC-300 → SC-200 → AZ-500 → SC-100 → SecAI+. Each domain: <b style={{ color: "#3E9B4F" }}>Briefing → Training Sim → LGM PBQ Lab → Henchman mission</b>. Clear every domain to face the cert's <b style={{ color: "#B4482E" }}>Cert Trial boss at 99%</b> — beat it for 100%. Complete a cert, earn a rank. Six certs at 100% unlocks <b>Emperor Zurg</b>.
+      </div>
+
+      <div className="panel" style={{ padding: 14, marginBottom: 14, border: zurgReady ? "2px solid #6A3FA0" : "1px dashed #C9D2DF",
+        background: zurgReady ? "linear-gradient(135deg,#2A1B4A,#3B2566)" : "#fff" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 28 }}>{zurgReady ? "🛸" : "🔒"}</div>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <div style={{ fontWeight: 700, fontSize: 16, color: zurgReady ? "#8FE388" : "#7A8699" }}>
+              {prog.zurgDefeated ? "ZURG NEUTRALIZED — GALACTIC SECURITY ENGINEER" : "FINAL BATTLE: EMPEROR ZURG"}
+            </div>
+            <div className="mono" style={{ fontSize: 10.5, marginTop: 3, color: zurgReady ? "#C4B6E4" : "#A6B0C0" }}>
+              {prog.zurgDefeated ? "THE GALAXY IS SAFE — GO APPLY FOR THOSE SECURITY ENGINEER ROLES" :
+               zurgReady ? "ALL SIX CERTS AT 100%. FORTRESS COORDINATES UNLOCKED." : "UNLOCKS AT 100% ON ALL SIX CERTIFICATIONS"}
+            </div>
+          </div>
+          <button className={zurgReady ? "btn primary" : "btn"} style={{ width: "auto" }} disabled={!zurgReady}
+            onClick={() => { SFX.rocket(); go({ view: "zurg" }); }}>{prog.zurgDefeated ? "Replay" : "Engage Zurg"}</button>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
+        {TRACK_ORDER.map((t, idx) => {
+          const tr = TRACKS[t]; const pct = certPct(t, prog); const band = bandFor(pct);
+          const trialReady = certBossUnlocked(t, prog);
+          return (
+            <div key={t} className="panel" style={{ padding: 15 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: tr.color }}>
+                  <span className="mono" style={{ fontSize: 11, color: "#A6B0C0", marginRight: 6 }}>{idx + 1}</span>{tr.name}
+                </div>
+                <span className="chip" style={{ background: band.c + "1E", color: band.c }}>{pct >= 100 ? "★ Complete" : band.label}</span>
+              </div>
+              <div className="mono" style={{ fontSize: 10, color: "#7A8699", margin: "3px 0 10px" }}>{tr.full}</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+                <span className="mono" style={{ fontSize: 28, fontWeight: 600, color: tr.color }}>{pct}%</span>
+              </div>
+              <Gauge pct={pct} color={tr.color} />
+              <div style={{ display: "grid", gap: 7, marginTop: 12 }}>
+                {domainsFor(t).map((d) => {
+                  const dp = domainPct(d, prog);
+                  const installed = !!packFor(d.id);
+                  return (
+                    <button key={d.id} className="btn" style={{ opacity: installed ? 1 : 0.75 }}
+                      onClick={() => { SFX.click(); go({ view: "domain", domId: d.id }); }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12.5, gap: 8 }}>
+                        <span style={{ lineHeight: 1.35 }}>{d.domain} <span className="mono" style={{ fontSize: 9.5, color: "#A6B0C0" }}>{d.weight}</span></span>
+                        <span className="mono" style={{ fontSize: 11, color: dp >= 100 ? "#3E9B4F" : "#7A8699", whiteSpace: "nowrap" }}>
+                          {installed ? (dp >= 100 ? "★ 100%" : dp + "%") : "📡"}
+                        </span>
+                      </div>
+                      <Bar pct={dp} color={dp >= 100 ? "#3E9B4F" : tr.color} h={4} />
+                    </button>
+                  );
+                })}
+                <button className="btn" disabled={!trialReady}
+                  style={{ borderColor: trialReady ? "#B4482E" : "#DCE2EB", opacity: trialReady ? 1 : 0.6 }}
+                  onClick={() => { SFX.rocket(); go({ view: "certboss", track: t }); }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#B4482E" }}>⚔ Cert Trial{(prog.certBoss[t] || 0) >= 80 ? " — CLEARED ★" : ""}</span>
+                  <span className="mono" style={{ float: "right", fontSize: 10, color: "#7A8699" }}>
+                    {trialReady ? ((prog.certBoss[t] || 0) ? "BEST " + prog.certBoss[t] : "AT 99% — FIGHT FOR 100%") : "ALL DOMAINS TO 100% FIRST"}
+                  </span>
+                </button>
+              </div>
+              <div style={{ marginTop: 10, textAlign: "right" }}>
+                <button className="btn ghost" style={{ width: "auto", fontSize: 11, padding: "4px 8px" }}
+                  onClick={() => { if (window.confirm("Reset ALL progress for " + tr.name + "? Content packs stay installed.")) {
+                    update((p) => {
+                      domainsFor(t).forEach((d) => { d.topics.forEach((x) => { delete p.mastered[x.id]; delete p.lessonsRead[x.id]; }); delete p.pbq[d.id]; delete p.boss[d.id]; });
+                      delete p.certBoss[t]; return p;
+                    }); } }}>Reset cert</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ marginTop: 16, textAlign: "right" }}>
+        <button className="btn ghost" style={{ width: "auto", fontSize: 12 }}
+          onClick={() => { if (window.confirm("Reset EVERYTHING?")) update(() => ({ ...DEFAULT_PROG, sound: prog.sound })); }}>Reset all progress</button>
+      </div>
+    </div>
+  );
+}
+
+/* ============ DOMAIN VIEW ============ */
+function DomainView({ domId, prog, update, go }) {
+  const dom = CURRICULUM.find((d) => d.id === domId);
+  const tr = TRACKS[dom.track];
+  const pack = packFor(domId);
+  const back = () => go({ view: "hub" });
+  if (!pack) return <MissingPack dom={dom} onBack={back} />;
+
+  const masteredCount = dom.topics.filter((t) => prog.mastered[t.id]).length;
+  const bossUnlocked = masteredCount >= 3;
+  const pbqBest = prog.pbq[domId] || 0;
+  const bossBest = prog.boss[domId] || 0;
+
+  return (
+    <div>
+      <button className="btn ghost" style={{ width: "auto", marginBottom: 12, fontSize: 12 }} onClick={back}>← Star Command</button>
+      <div style={{ fontSize: 22, fontWeight: 700, color: tr.color }}>{dom.domain}</div>
+      <div className="mono" style={{ fontSize: 10.5, color: "#7A8699", margin: "5px 0 14px" }}>
+        {tr.name} · WEIGHT {dom.weight} · 50-QUESTION PACK INSTALLED · REPLAY ANYTHING FREELY — BEST SCORES ARE KEPT
+      </div>
+      <div style={{ display: "grid", gap: 9 }}>
+        {dom.topics.map((t, i) => {
+          const mastered = !!prog.mastered[t.id]; const read = !!prog.lessonsRead[t.id];
+          return (
+            <div key={t.id} className="panel" style={{ padding: 13, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap",
+              borderColor: mastered ? "#3E9B4F" : "#DCE2EB" }}>
+              <div className="mono" style={{ fontSize: 17, width: 28, color: mastered ? "#3E9B4F" : "#C9D2DF" }}>{mastered ? "✓" : String(i + 1).padStart(2, "0")}</div>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ fontWeight: 700, fontSize: 14.5 }}>{t.name}</div>
+                <div className="mono" style={{ fontSize: 10, color: mastered ? "#3E9B4F" : read ? "#C8901A" : "#7A8699", marginTop: 3 }}>
+                  {mastered ? "MASTERED" : read ? "BRIEFED — SIM READY" : "AWAITING BRIEFING"}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+                <button className="btn" style={{ width: "auto", fontSize: 12.5 }} onClick={() => { SFX.click(); go({ view: "lesson", topicId: t.id }); }}>
+                  {read ? "Re-read" : "📖 Briefing"}</button>
+                <button className="btn" style={{ width: "auto", fontSize: 12.5, opacity: read ? 1 : 0.5 }} disabled={!read}
+                  onClick={() => { SFX.blaster(); go({ view: "drill", topicId: t.id }); }}>{mastered ? "Re-run sim" : "🎯 Sim"}</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="panel" style={{ padding: 14, marginTop: 10, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ fontSize: 24 }}>🧪</div>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "#2E6DB4" }}>LGM Engineering Bay — PBQ Lab</div>
+          <div className="mono" style={{ fontSize: 10, color: "#7A8699", marginTop: 3 }}>
+            10 PBQs (ORDER · MATCH · SELECT-ALL) · BEST {pbqBest}/100 {pbqBest >= 80 ? "✓" : "· NEED ≥80"}
+          </div>
+        </div>
+        <button className="btn" style={{ width: "auto", borderColor: "#2E6DB4" }} onClick={() => { SFX.click(); go({ view: "pbqlab", domId }); }}>Enter the Bay</button>
+      </div>
+
+      <div className="panel" style={{ padding: 14, marginTop: 9, borderColor: bossUnlocked ? "#D64545" : "#DCE2EB", opacity: bossUnlocked ? 1 : 0.65 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ fontSize: 24 }}>👾</div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "#D64545" }}>Field Mission: {dom.villain}</div>
+            <div style={{ fontSize: 12, color: "#4A5568", margin: "3px 0" }}>{dom.villainDesc}</div>
+            <div className="mono" style={{ fontSize: 10, color: "#7A8699" }}>
+              {bossUnlocked ? (bossBest ? "BEST " + bossBest + "/100" + (bossBest >= 80 ? " ✓" : " · NEED ≥80") : "UNLOCKED — LIVE DAMAGE / REP / EVIDENCE METERS")
+                : "MASTER " + (3 - masteredCount) + " MORE TOPIC" + (3 - masteredCount === 1 ? "" : "S")}
+            </div>
+          </div>
+          <button className="btn" style={{ width: "auto", borderColor: "#D64545", fontWeight: 700 }} disabled={!bossUnlocked}
+            onClick={() => { SFX.rocket(); go({ view: "boss", domId }); }}>Deploy</button>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 12, textAlign: "right" }}>
+        <button className="btn ghost" style={{ width: "auto", fontSize: 11 }}
+          onClick={() => { if (window.confirm("Reset progress for this domain only?")) update((p) => {
+            dom.topics.forEach((t) => { delete p.mastered[t.id]; delete p.lessonsRead[t.id]; });
+            delete p.pbq[domId]; delete p.boss[domId]; return p; }); }}>Reset this domain</button>
+      </div>
+    </div>
+  );
+}
+
+/* ============ BRIEFING (static, from pack) ============ */
+function LessonView({ topicId, prog, update, go }) {
+  const { d: dom, t: topic } = findTopic(topicId);
+  const tr = TRACKS[dom.track];
+  const pack = packFor(dom.id);
+  const lesson = pack && pack.lessons && pack.lessons[topicId];
+  const back = () => go({ view: "domain", domId: dom.id });
+  if (!lesson) return <MissingPack dom={dom} onBack={back} />;
+  return (
+    <div style={{ maxWidth: 760, margin: "0 auto" }}>
+      <button className="btn ghost" style={{ width: "auto", marginBottom: 12, fontSize: 12 }} onClick={back}>← {dom.domain}</button>
+      <span className="chip" style={{ background: tr.color + "1E", color: tr.color }}>{tr.name} MISSION BRIEFING</span>
+      <div style={{ fontSize: 23, fontWeight: 700, margin: "10px 0 8px" }}>{topic.name}</div>
+      {lesson.intro && <div style={{ fontSize: 13.5, fontStyle: "italic", color: "#6A3FA0", borderLeft: "3px solid #6A3FA0", padding: "6px 12px", marginBottom: 14, lineHeight: 1.6 }}>{lesson.intro}</div>}
+      {(lesson.sections || []).map((s, i) => (
+        <div key={i} style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, color: tr.color, marginBottom: 6 }}>{s.h}</div>
+          <div style={{ fontSize: 14.5, lineHeight: 1.7, color: "#333C4D", whiteSpace: "pre-wrap" }}>{s.b}</div>
+          {s.data && <Evidence text={s.data} color={tr.color} />}
+        </div>
+      ))}
+      {lesson.traps && (
+        <div className="panel" style={{ padding: 15, marginBottom: 14, borderColor: "#C8901A66" }}>
+          <div className="mono" style={{ fontSize: 10, letterSpacing: ".2em", color: "#C8901A", marginBottom: 8 }}>⚠ EXAM TRAPS</div>
+          {lesson.traps.map((x, i) => <div key={i} style={{ fontSize: 13.5, lineHeight: 1.6, color: "#333C4D", marginBottom: 6 }}>• {x}</div>)}
+        </div>
+      )}
+      {lesson.keys && (
+        <div className="panel" style={{ padding: 15, marginBottom: 14 }}>
+          <div className="mono" style={{ fontSize: 10, letterSpacing: ".2em", color: "#2E6DB4", marginBottom: 8 }}>KEY TAKEAWAYS</div>
+          {lesson.keys.map((x, i) => <div key={i} style={{ fontSize: 13.5, lineHeight: 1.6, color: "#333C4D", marginBottom: 6 }}>✓ {x}</div>)}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 10, paddingBottom: 30 }}>
+        <button className="btn primary" style={{ width: "auto" }}
+          onClick={() => { SFX.blaster(); update((p) => { p.lessonsRead = { ...p.lessonsRead, [topicId]: true }; return p; }); go({ view: "drill", topicId }); }}>
+          Briefing received — run the Training Sim 🎯
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============ TRAINING SIM ============ */
+function DrillView({ topicId, prog, update, go }) {
+  const { d: dom, t: topic } = findTopic(topicId);
+  const tr = TRACKS[dom.track];
+  const pack = packFor(dom.id);
+  const bankQs = pack && pack.mcq && pack.mcq[topicId];
+  const [qs, setQs] = useState(() => bankQs ? shuffle(bankQs).map((q) => ({ ...q, options: shuffle(q.options) })) : null);
+  const [qi, setQi] = useState(0);
+  const [picked, setPicked] = useState(null);
+  const [correct, setCorrect] = useState(0);
+  const [done, setDone] = useState(false);
+  const back = () => go({ view: "domain", domId: dom.id });
+  if (!qs) return <MissingPack dom={dom} onBack={back} />;
+  const passNeeded = Math.ceil(qs.length * 0.8);
+
+  if (done) {
+    const passed = correct >= passNeeded;
+    return (
+      <div className="panel" style={{ padding: 24, maxWidth: 640, margin: "20px auto", textAlign: "center" }}>
+        <div className="mono" style={{ fontSize: 11, letterSpacing: ".25em", color: "#7A8699" }}>SIM COMPLETE · {topic.name.toUpperCase()}</div>
+        <div style={{ fontSize: 40, fontWeight: 700, margin: "10px 0", color: passed ? "#3E9B4F" : "#C8901A" }}>{correct} / {qs.length}</div>
+        <div style={{ fontSize: 14.5, color: "#4A5568", marginBottom: 18, lineHeight: 1.6 }}>
+          {passed ? (prog.mastered[topicId] ? "Still razor sharp, Ranger." : "Topic MASTERED. Readiness updated and saved.")
+            : "Needed " + passNeeded + ". Re-read the briefing, then run it back (reshuffled) — repetition on a fixed bank is exactly how exam drilling works."}
+        </div>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+          {!passed && <button className="btn" style={{ width: "auto" }} onClick={() => go({ view: "lesson", topicId })}>📖 Re-read briefing</button>}
+          <button className="btn primary" style={{ width: "auto" }}
+            onClick={() => { SFX.blaster(); setQs(shuffle(bankQs).map((q) => ({ ...q, options: shuffle(q.options) }))); setQi(0); setPicked(null); setCorrect(0); setDone(false); }}>
+            Run sim again</button>
+          <button className="btn ghost" style={{ width: "auto" }} onClick={back}>Back</button>
+        </div>
+      </div>
+    );
+  }
+
+  const q = qs[qi];
+  const answer = (o) => {
+    if (picked) return; setPicked(o);
+    if (o.c) { SFX.correct(); setCorrect((c) => c + 1);
+      update((p) => { p.streak += 1; p.bestStreak = Math.max(p.bestStreak, p.streak); p.xp += 10 + Math.min(20, p.streak * 2); return p; });
+    } else { SFX.wrong(); update((p) => { p.streak = 0; return p; }); }
+  };
+  const next = () => {
+    SFX.click(); setPicked(null);
+    if (qi + 1 >= qs.length) {
+      if (correct >= passNeeded) { if (!prog.mastered[topicId]) SFX.fanfare();
+        update((p) => { if (!p.mastered[topicId]) { p.mastered = { ...p.mastered, [topicId]: true }; p.xp += 150; } return p; }); }
+      setDone(true);
+    } else setQi(qi + 1);
+  };
+
+  return (
+    <div style={{ maxWidth: 760, margin: "0 auto" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+        <span className="chip" style={{ background: tr.color + "1E", color: tr.color }}>SIM · {topic.name}</span>
+        <span className="mono" style={{ fontSize: 11, color: "#7A8699" }}>Q{qi + 1}/{qs.length} · {correct} ✓ · pass {passNeeded}</span>
+      </div>
+      <div className="panel" style={{ padding: 18 }}>
+        <div style={{ fontSize: 14.5, lineHeight: 1.6, color: "#333C4D", marginBottom: 8 }}>{q.s}</div>
+        <Evidence text={q.e} color={tr.color} />
+        <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.5, marginBottom: 12 }}>{q.q}</div>
+        <div style={{ display: "grid", gap: 8 }}>
+          {q.options.map((o, i) => {
+            const show = !!picked; const isPicked = picked === o;
+            const col = o.c ? "#3E9B4F" : "#D64545";
+            return (
+              <div key={i}>
+                <button className="btn" disabled={show} onClick={() => answer(o)}
+                  style={show ? { borderColor: (isPicked || o.c) ? col : "#DCE2EB", opacity: isPicked || o.c ? 1 : 0.5, cursor: "default" } : {}}>
+                  {o.t}
+                  {show && (isPicked || o.c) && <span className="mono" style={{ float: "right", fontSize: 11, color: col }}>{o.c ? "✓" : "✗"}{isPicked ? " YOU" : ""}</span>}
+                </button>
+                {show && (isPicked || o.c) && (
+                  <div style={{ fontSize: 13, lineHeight: 1.55, color: "#4A5568", padding: "8px 12px 2px", borderLeft: "2px solid " + col, margin: "6px 0 2px 6px" }}>{o.w}</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {picked && <button className="btn primary" style={{ width: "auto", marginTop: 16 }} onClick={next}>{qi + 1 >= qs.length ? "End sim →" : "Next →"}</button>}
+      </div>
+    </div>
+  );
+}
+
+/* ============ PBQ COMPONENTS ============ */
+function OrderPBQ({ pbq, onScore }) {
+  const [pool, setPool] = useState(() => shuffle(pbq.steps));
+  const [seq, setSeq] = useState([]);
+  const [graded, setGraded] = useState(false);
+  const submit = () => { const s = pbq.steps.reduce((a, x, i) => a + (seq[i] === x ? 1 : 0), 0) / pbq.steps.length; setGraded(true); onScore(s); };
+  return (
+    <div>
+      <div className="mono" style={{ fontSize: 10, color: "#2E6DB4", marginBottom: 8 }}>PBQ · TAP TO BUILD THE CORRECT ORDER</div>
+      <div style={{ fontSize: 14, marginBottom: 6 }}>{pbq.s}</div>
+      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>{pbq.task}</div>
+      <div style={{ display: "grid", gap: 6, marginBottom: 12 }}>
+        {seq.map((s, i) => (
+          <div key={i} className="panel" style={{ padding: "8px 12px", fontSize: 13.5, borderLeft: "3px solid " + (graded ? (pbq.steps[i] === s ? "#3E9B4F" : "#D64545") : "#6A3FA0") }}>
+            <span className="mono" style={{ color: "#7A8699", marginRight: 8 }}>{i + 1}.</span>{s}
+            {graded && pbq.steps[i] !== s && <span className="mono" style={{ fontSize: 10.5, color: "#D64545" }}> — correct: {pbq.steps[i]}</span>}
+          </div>
+        ))}
+      </div>
+      {!graded && <div style={{ display: "grid", gap: 6, marginBottom: 12 }}>
+        {pool.map((s, i) => <button key={i} className="btn" style={{ fontSize: 13.5 }} onClick={() => { SFX.click(); setSeq([...seq, s]); setPool(pool.filter((x) => x !== s)); }}>{s}</button>)}
+      </div>}
+      {!graded ? (
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn primary" style={{ width: "auto" }} disabled={pool.length > 0} onClick={submit}>Submit order</button>
+          <button className="btn ghost" style={{ width: "auto" }} onClick={() => { setSeq([]); setPool(shuffle(pbq.steps)); }}>Start over</button>
+        </div>
+      ) : <div style={{ fontSize: 13.5, lineHeight: 1.6, color: "#4A5568", borderLeft: "3px solid #2E6DB4", padding: "6px 12px" }}>{pbq.x}</div>}
+    </div>
+  );
+}
+function MatchPBQ({ pbq, onScore }) {
+  const [assign, setAssign] = useState({});
+  const [graded, setGraded] = useState(false);
+  const submit = () => { const s = pbq.items.reduce((a, it, i) => a + (assign[i] === it.c ? 1 : 0), 0) / pbq.items.length; setGraded(true); onScore(s); };
+  return (
+    <div>
+      <div className="mono" style={{ fontSize: 10, color: "#2E6DB4", marginBottom: 8 }}>PBQ · MATCH EACH ITEM TO ITS CATEGORY</div>
+      <div style={{ fontSize: 14, marginBottom: 6 }}>{pbq.s}</div>
+      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>{pbq.task}</div>
+      <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
+        {pbq.items.map((it, i) => (
+          <div key={i} className="panel" style={{ padding: "10px 12px", borderLeft: graded ? "3px solid " + (assign[i] === it.c ? "#3E9B4F" : "#D64545") : "1px solid #DCE2EB" }}>
+            <div style={{ fontSize: 13.5, marginBottom: 8 }}>{it.t}</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {pbq.cats.map((c) => (
+                <button key={c} className="btn" disabled={graded}
+                  style={{ width: "auto", fontSize: 12, padding: "5px 10px",
+                    background: assign[i] === c ? "#6A3FA0" : "#fff", color: assign[i] === c ? "#fff" : "#1E2430",
+                    borderColor: assign[i] === c ? "#6A3FA0" : "#C9D2DF" }}
+                  onClick={() => { SFX.click(); setAssign({ ...assign, [i]: c }); }}>{c}</button>
+              ))}
+            </div>
+            {graded && assign[i] !== it.c && <div className="mono" style={{ fontSize: 10.5, color: "#D64545", marginTop: 6 }}>Correct: {it.c}</div>}
+          </div>
+        ))}
+      </div>
+      {!graded ? <button className="btn primary" style={{ width: "auto" }} disabled={Object.keys(assign).length < pbq.items.length} onClick={submit}>Submit matches</button>
+        : <div style={{ fontSize: 13.5, lineHeight: 1.6, color: "#4A5568", borderLeft: "3px solid #2E6DB4", padding: "6px 12px" }}>{pbq.x}</div>}
+    </div>
+  );
+}
+function MultiPBQ({ pbq, onScore }) {
+  const [sel, setSel] = useState({});
+  const [graded, setGraded] = useState(false);
+  const submit = () => { const s = pbq.options.reduce((a, o, i) => a + ((!!sel[i]) === (!!o.c) ? 1 : 0), 0) / pbq.options.length; setGraded(true); onScore(s); };
+  return (
+    <div>
+      <div className="mono" style={{ fontSize: 10, color: "#2E6DB4", marginBottom: 8 }}>PBQ · SELECT ALL THAT APPLY</div>
+      <div style={{ fontSize: 14, marginBottom: 6 }}>{pbq.s}</div>
+      <Evidence text={pbq.e} color="#2E6DB4" />
+      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>{pbq.q}</div>
+      <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
+        {pbq.options.map((o, i) => (
+          <div key={i}>
+            <button className="btn" disabled={graded}
+              style={{ fontSize: 13.5, borderColor: graded ? (o.c ? "#3E9B4F" : (sel[i] ? "#D64545" : "#DCE2EB")) : (sel[i] ? "#6A3FA0" : "#C9D2DF"),
+                background: !graded && sel[i] ? "#F7F3FC" : "#fff" }}
+              onClick={() => { SFX.click(); setSel({ ...sel, [i]: !sel[i] }); }}>
+              <span className="mono" style={{ marginRight: 8 }}>{sel[i] ? "☑" : "☐"}</span>{o.t}
+              {graded && <span className="mono" style={{ float: "right", fontSize: 10.5, color: o.c ? "#3E9B4F" : "#D64545" }}>{o.c ? "SELECT" : "OMIT"}</span>}
+            </button>
+            {graded && ((!!sel[i]) !== (!!o.c)) && o.w && <div style={{ fontSize: 12.5, color: "#4A5568", padding: "4px 12px", borderLeft: "2px solid #D64545", margin: "4px 0 0 6px" }}>{o.w}</div>}
+          </div>
+        ))}
+      </div>
+      {!graded ? <button className="btn primary" style={{ width: "auto" }} onClick={submit}>Submit selection</button>
+        : <div style={{ fontSize: 13.5, lineHeight: 1.6, color: "#4A5568", borderLeft: "3px solid #2E6DB4", padding: "6px 12px" }}>{pbq.x}</div>}
+    </div>
+  );
+}
+function PBQRenderer({ pbq, onScore }) {
+  if (pbq.type === "order") return <OrderPBQ pbq={pbq} onScore={onScore} />;
+  if (pbq.type === "match") return <MatchPBQ pbq={pbq} onScore={onScore} />;
+  return <MultiPBQ pbq={pbq} onScore={onScore} />;
+}
+
+/* ============ PBQ LAB ============ */
+function PBQLabView({ domId, prog, update, go }) {
+  const dom = CURRICULUM.find((d) => d.id === domId);
+  const pack = packFor(domId);
+  const [pbqs, setPbqs] = useState(() => pack && pack.pbqs ? shuffle(pack.pbqs) : null);
+  const [i, setI] = useState(0);
+  const [scores, setScores] = useState([]);
+  const [scored, setScored] = useState(false);
+  const [done, setDone] = useState(false);
+  const back = () => go({ view: "domain", domId });
+  if (!pbqs) return <MissingPack dom={dom} onBack={back} />;
+  const total = Math.round((scores.reduce((a, b) => a + b, 0) / pbqs.length) * 100);
+
+  if (done) {
+    const passed = total >= 80;
+    return (
+      <div className="panel" style={{ padding: 24, maxWidth: 640, margin: "20px auto", textAlign: "center" }}>
+        <div className="mono" style={{ fontSize: 11, letterSpacing: ".25em", color: "#7A8699" }}>ENGINEERING BAY REPORT</div>
+        <div style={{ fontSize: 42, fontWeight: 700, margin: "10px 0", color: passed ? "#3E9B4F" : "#C8901A" }}>{total}/100</div>
+        <div style={{ fontSize: 14.5, color: "#4A5568", marginBottom: 18 }}>
+          {passed ? "The LGMs approve (ooooooh). PBQ Lab cleared — saved to your record." : "Under 80. PBQs win exams — run the bay again; partial credit scores just like the real thing."}
+        </div>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+          <button className="btn primary" style={{ width: "auto" }}
+            onClick={() => { SFX.blaster(); setPbqs(shuffle(pack.pbqs)); setI(0); setScores([]); setScored(false); setDone(false); }}>Run again</button>
+          <button className="btn ghost" style={{ width: "auto" }} onClick={back}>Back</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: 760, margin: "0 auto" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+        <span className="chip" style={{ background: "#2E6DB41E", color: "#2E6DB4" }}>🧪 LGM BAY · {dom.domain}</span>
+        <span className="mono" style={{ fontSize: 11, color: "#7A8699" }}>PBQ {i + 1}/{pbqs.length}</span>
+      </div>
+      <div className="panel" style={{ padding: 18 }}>
+        <PBQRenderer key={domId + i} pbq={pbqs[i]} onScore={(s) => {
+          if (s >= 0.99) SFX.correct(); else if (s >= 0.5) SFX.click(); else SFX.wrong();
+          setScores((x) => [...x, s]); setScored(true);
+          update((p) => { if (s >= 0.99) { p.streak += 1; p.bestStreak = Math.max(p.bestStreak, p.streak); p.xp += 40; } else { p.streak = 0; p.xp += Math.round(s * 25); } return p; });
+        }} />
+        {scored && <button className="btn primary" style={{ width: "auto", marginTop: 16 }} onClick={() => {
+          SFX.click(); setScored(false);
+          if (i + 1 >= pbqs.length) {
+            const finalTotal = Math.round((scores.reduce((a, b) => a + b, 0) / pbqs.length) * 100);
+            if (finalTotal >= 80) SFX.fanfare();
+            update((p) => { if (finalTotal > (p.pbq[domId] || 0)) p.pbq = { ...p.pbq, [domId]: finalTotal }; return p; });
+            setDone(true);
+          } else setI(i + 1);
+        }}>{i + 1 >= pbqs.length ? "Finish →" : "Next PBQ →"}</button>}
+      </div>
+    </div>
+  );
+}
+
+/* ============ BATTLE ENGINE (henchmen, cert trials, Zurg) ============ */
+function Meters({ m }) {
+  return (
+    <div className="panel" style={{ padding: "12px 16px", marginBottom: 12, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+      {[{ k: "ALLIANCE DAMAGE", v: m.damage, c: "#D64545" }, { k: "REPUTATION", v: m.reputation, c: "#C8901A" }, { k: "EVIDENCE", v: m.evidence, c: "#3E9B4F" }].map((x) => (
+        <div key={x.k}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+            <span className="mono" style={{ fontSize: 8.5, color: "#7A8699" }}>{x.k}</span>
+            <span className="mono" style={{ fontSize: 11, color: x.c }}>{x.v}</span>
+          </div>
+          <Bar pct={x.v} color={x.c} />
+        </div>
+      ))}
+    </div>
+  );
+}
+const clamp = (v) => Math.max(0, Math.min(100, v));
+const gradeOf = (m) => clamp(Math.round((100 - m.damage) * 0.5 + m.reputation * 0.25 + m.evidence * 0.25));
+
+function useBattle(update) {
+  const [m, setM] = useState({ damage: 0, reputation: 100, evidence: 100 });
+  const [picked, setPicked] = useState(null);
+  const pick = (o) => {
+    if (picked) return; setPicked(o);
+    if (o.ql === "best") SFX.blaster(); else if (o.ql === "ok") SFX.click(); else SFX.hit();
+    setM((x) => ({ damage: clamp(x.damage + (+o.d || 0)), reputation: clamp(x.reputation + (+o.r || 0)), evidence: clamp(x.evidence + (+o.ev || 0)) }));
+    update((p) => { if (o.ql === "best") { p.streak += 1; p.bestStreak = Math.max(p.bestStreak, p.streak); p.xp += 30; } else { p.streak = 0; if (o.ql === "ok") p.xp += 12; } return p; });
+  };
+  const reset = () => { setM({ damage: 0, reputation: 100, evidence: 100 }); setPicked(null); };
+  return { m, picked, setPicked, pick, reset };
+}
+
+function BattleStage({ stage, accent, picked, onPick, onNext, isLast, tag }) {
+  return (
+    <div className="panel" style={{ padding: 18 }}>
+      {tag && <span className="chip" style={{ background: "#6A3FA01E", color: "#6A3FA0", marginBottom: 8, display: "inline-block" }}>{tag}</span>}
+      <div style={{ fontSize: 15, lineHeight: 1.6, marginBottom: 8 }}>{stage.sit}</div>
+      <Evidence text={stage.e} color={accent} />
+      <div style={{ display: "grid", gap: 8 }}>
+        {stage.options.map((o, i) => {
+          const show = !!picked; const isPicked = picked === o;
+          const col = o.ql === "best" ? "#3E9B4F" : o.ql === "ok" ? "#C8901A" : "#D64545";
+          return (
+            <div key={i}>
+              <button className="btn" disabled={show} onClick={() => onPick(o)}
+                style={show ? { borderColor: (isPicked || o.ql === "best") ? col : "#DCE2EB", opacity: isPicked || o.ql === "best" ? 1 : 0.5, cursor: "default" } : {}}>
+                {o.t}
+                {show && isPicked && <span className="mono" style={{ display: "block", fontSize: 11, color: col, marginTop: 6 }}>
+                  DMG {o.d >= 0 ? "+" : ""}{o.d} · REP {o.r >= 0 ? "+" : ""}{o.r} · EVID {o.ev >= 0 ? "+" : ""}{o.ev}</span>}
+              </button>
+              {show && (isPicked || o.ql === "best") && (
+                <div style={{ fontSize: 13, lineHeight: 1.55, color: "#4A5568", padding: "8px 12px 2px", borderLeft: "2px solid " + col, margin: "6px 0 2px 6px" }}>{o.w}</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {picked && <button className="btn primary" style={{ width: "auto", marginTop: 16 }} onClick={onNext}>{isLast ? "End the battle →" : "The battle rages on →"}</button>}
+    </div>
+  );
+}
+
+function GenericBattle({ battle, headerChip, headerColor, onFinish, onExit, update, introExtra }) {
+  const { m, picked, setPicked, pick, reset } = useBattle(update);
+  const [stage, setStage] = useState(-1);
+  const [over, setOver] = useState(false);
+  const grade = gradeOf(m);
+
+  if (stage === -1) return (
+    <div className="panel" style={{ padding: 22, maxWidth: 700, margin: "0 auto" }}>
+      <span className="chip" style={{ background: headerColor + "1E", color: headerColor }}>{headerChip}</span>
+      <div style={{ fontSize: 24, fontWeight: 700, margin: "10px 0 6px" }}>{battle.title}</div>
+      <div style={{ fontSize: 14.5, lineHeight: 1.65, color: "#4A5568", marginBottom: 12 }}>{battle.brief}</div>
+      {introExtra}
+      <div className="mono" style={{ fontSize: 11, lineHeight: 1.8, color: "#7A8699", marginBottom: 16 }}>
+        {battle.stages.length} STAGES · DAMAGE / REPUTATION / EVIDENCE · GRADE = 50/25/25 · ≥80 WINS
+      </div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <button className="btn primary" style={{ width: "auto" }} onClick={() => { SFX.rocket(); setStage(0); }}>To infinity — engage! →</button>
+        <button className="btn ghost" style={{ width: "auto" }} onClick={onExit}>Retreat</button>
+      </div>
+    </div>
+  );
+
+  if (over) return (
+    <div style={{ maxWidth: 700, margin: "0 auto" }}>
+      <Meters m={m} />
+      <div className="panel" style={{ padding: 24, textAlign: "center" }}>
+        <div className="mono" style={{ fontSize: 11, letterSpacing: ".25em", color: "#7A8699" }}>MISSION DEBRIEF</div>
+        <div style={{ fontSize: 20, fontWeight: 700, margin: "8px 0" }}>{battle.title}</div>
+        <div style={{ fontSize: 48, fontWeight: 700, color: bandFor(grade).c, margin: "6px 0" }}>{grade}<span style={{ fontSize: 18, color: "#A6B0C0" }}>/100</span></div>
+        <div style={{ fontSize: 14.5, color: "#4A5568", marginBottom: 18, lineHeight: 1.6 }}>
+          {grade >= 80 ? (battle.win || "Victory! The enemy retreats to Planet Z in disgrace.") : (battle.lose || "The Alliance took losses. Regroup, review the calls that cost you, and deploy again.")}
+        </div>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+          <button className="btn primary" style={{ width: "auto" }} onClick={() => { reset(); setStage(-1); setOver(false); }}>Fight again</button>
+          <button className="btn ghost" style={{ width: "auto" }} onClick={onExit}>Return</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const s = battle.stages[stage];
+  return (
+    <div style={{ maxWidth: 760, margin: "0 auto" }}>
+      <Meters m={m} />
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+        <span className="chip" style={{ background: headerColor + "1E", color: headerColor }}>{battle.title}</span>
+        <span className="mono" style={{ fontSize: 11, color: "#7A8699" }}>STAGE {stage + 1}/{battle.stages.length}</span>
+      </div>
+      <BattleStage stage={s} accent={headerColor} picked={picked} tag={s.tag} isLast={stage + 1 >= battle.stages.length}
+        onPick={pick}
+        onNext={() => {
+          setPicked(null);
+          if (stage + 1 >= battle.stages.length) { setOver(true); onFinish(grade); }
+          else setStage(stage + 1);
+        }} />
+    </div>
+  );
+}
+
+/* Henchman field mission — battle stored in the domain pack */
+function BossView({ domId, prog, update, go }) {
+  const dom = CURRICULUM.find((d) => d.id === domId);
+  const pack = packFor(domId);
+  const back = () => go({ view: "domain", domId });
+  if (!pack || !pack.boss) return <MissingPack dom={dom} onBack={back} />;
+  return <GenericBattle battle={pack.boss} headerChip={"👾 FIELD MISSION · " + dom.villain.toUpperCase()} headerColor="#D64545"
+    update={update} onExit={back}
+    onFinish={(grade) => { if (grade >= 80) SFX.fanfare();
+      update((p) => { p.xp += grade; if (grade > (p.boss[domId] || 0)) p.boss = { ...p.boss, [domId]: grade }; return p; }); }} />;
+}
+
+/* Cert Trial — battle stored in core-battles pack, unlocks at 99% */
+function CertBossView({ track, prog, update, go }) {
+  const tr = TRACKS[track];
+  const battle = (CORE().certTrials || {})[track];
+  const back = () => go({ view: "hub" });
+  if (!battle) return (
+    <div className="panel" style={{ padding: 24, maxWidth: 560, margin: "30px auto", textAlign: "center" }}>
+      <div className="mono" style={{ fontSize: 11, color: "#C8901A", marginBottom: 10 }}>CERT TRIAL PACK NOT INSTALLED</div>
+      <div style={{ fontSize: 14, color: "#4A5568", marginBottom: 14 }}>Ask Claude: "Write the Cert Trial battle for {tr.name}" and add it to packs/core-battles.js.</div>
+      <button className="btn" style={{ width: "auto" }} onClick={back}>Back</button>
+    </div>
+  );
+  return <GenericBattle battle={battle} headerChip={"⚔ CERT TRIAL · " + tr.name} headerColor="#B4482E" update={update} onExit={back}
+    introExtra={<div className="mono" style={{ fontSize: 11, color: "#B4482E", marginBottom: 10 }}>WIN (≥80) TO PUSH {tr.name} FROM 99% → 100% AND CLAIM YOUR NEXT RANK.</div>}
+    onFinish={(grade) => {
+      update((p) => { p.xp += grade * 1.5; if (grade > (p.certBoss[track] || 0)) p.certBoss = { ...p.certBoss, [track]: grade }; return p; });
+      if (grade >= 80) SFX.zurgDown();
+    }} />;
+}
+
+/* Final battle — static Zurg battle + one random PBQ per completed cert */
+function ZurgView({ prog, update, go }) {
+  const zurg = CORE().zurg;
+  const back = () => go({ view: "hub" });
+  const [seq] = useState(() => {
+    if (!zurg) return null;
+    const pbqPicks = [];
+    TRACK_ORDER.forEach((t) => {
+      for (const d of shuffle(domainsFor(t))) {
+        const pk = packFor(d.id);
+        if (pk && pk.pbqs && pk.pbqs.length) { pbqPicks.push({ kind: "pbq", cert: TRACKS[t].name, pbq: shuffle(pk.pbqs)[0] }); break; }
+      }
+    });
+    const stages = zurg.stages.map((s) => ({ kind: "stage", stage: s }));
+    const mixed = [];
+    stages.forEach((s, i) => { mixed.push(s); if (pbqPicks[i]) mixed.push(pbqPicks[i]); });
+    return mixed;
+  });
+  const { m, picked, setPicked, pick } = useBattle(update);
+  const [i, setI] = useState(-1);
+  const [pbqScored, setPbqScored] = useState(false);
+  const [over, setOver] = useState(false);
+  const [, setMForce] = useState(0);
+  const grade = gradeOf(m);
+  if (!zurg || !seq) return (
+    <div className="panel" style={{ padding: 24, maxWidth: 560, margin: "30px auto", textAlign: "center" }}>
+      <div style={{ fontSize: 14, color: "#4A5568", marginBottom: 14 }}>Zurg battle pack missing — check packs/core-battles.js.</div>
+      <button className="btn" style={{ width: "auto" }} onClick={back}>Back</button>
+    </div>
+  );
+
+  const advance = () => {
+    SFX.click(); setPicked(null); setPbqScored(false);
+    if (i + 1 >= seq.length) {
+      setOver(true);
+      update((p) => { p.xp += grade * 2; if (grade >= 80) { p.zurgDefeated = true; p.xp += 2000; } return p; });
+      if (grade >= 80) SFX.zurgDown();
+    } else setI(i + 1);
+  };
+
+  if (i === -1) return (
+    <div className="panel" style={{ padding: 26, maxWidth: 720, margin: "0 auto", background: "linear-gradient(160deg,#2A1B4A,#1B1430)", color: "#fff", borderColor: "#6A3FA0" }}>
+      <span className="chip" style={{ background: "#D6454533", color: "#FF8A8A" }}>🛸 FINAL BATTLE · EMPEROR ZURG</span>
+      <div style={{ fontSize: 27, fontWeight: 700, margin: "12px 0 8px", color: "#8FE388" }}>{zurg.title}</div>
+      <div style={{ fontSize: 15, lineHeight: 1.7, color: "#D8CFF0", marginBottom: 14 }}>{zurg.brief}</div>
+      <div className="mono" style={{ fontSize: 11, lineHeight: 1.9, color: "#C4B6E4", marginBottom: 20 }}>
+        {seq.length} ENCOUNTERS ACROSS ALL SIX CERTIFICATIONS — SCENARIO STAGES + LIVE PBQS FROM YOUR OWN BANKS.<br />
+        GRADE ≥80: ZURG FALLS FOREVER AND YOU BECOME A GALACTIC SECURITY ENGINEER.
+      </div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <button className="btn primary" style={{ width: "auto", fontSize: 15 }} onClick={() => { SFX.rocket(); setI(0); }}>To infinity and beyond! →</button>
+        <button className="btn" style={{ width: "auto", background: "transparent", color: "#C4B6E4", borderColor: "#6A3FA0" }} onClick={back}>Not yet</button>
+      </div>
+    </div>
+  );
+
+  if (over) {
+    const won = grade >= 80;
+    return (
+      <div style={{ maxWidth: 720, margin: "0 auto" }}>
+        <Meters m={m} />
+        <div className="panel" style={{ padding: 28, textAlign: "center", background: won ? "linear-gradient(160deg,#1E3A24,#2A1B4A)" : "#fff", color: won ? "#fff" : "#1E2430", borderColor: won ? "#3E9B4F" : "#DCE2EB" }}>
+          <div style={{ fontSize: 44 }}>{won ? "🏆" : "🛸"}</div>
+          <div style={{ fontSize: 26, fontWeight: 700, margin: "8px 0", color: won ? "#8FE388" : "#D64545" }}>{won ? "ZURG IS DEFEATED — FOREVER" : "ZURG ESCAPES INTO THE VOID"}</div>
+          <div style={{ fontSize: 52, fontWeight: 700, color: won ? "#8FE388" : "#C8901A", margin: "4px 0" }}>{grade}<span style={{ fontSize: 20, opacity: 0.6 }}>/100</span></div>
+          <div style={{ fontSize: 15, lineHeight: 1.7, margin: "12px auto 20px", maxWidth: 560, color: won ? "#D8CFF0" : "#4A5568" }}>
+            {won ? zurg.win : zurg.lose}
+          </div>
+          {won && <div className="mono" style={{ fontSize: 12, color: "#8FE388", marginBottom: 18 }}>★ RANK CONFERRED: GALACTIC SECURITY ENGINEER · UPDATE THAT RESUME AND APPLY ★</div>}
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <button className="btn" style={{ width: "auto" }} onClick={back}>Return to Star Command</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const enc = seq[i];
+  return (
+    <div style={{ maxWidth: 760, margin: "0 auto" }}>
+      <Meters m={m} />
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+        <span className="chip" style={{ background: "#6A3FA01E", color: "#6A3FA0" }}>🛸 {zurg.title}</span>
+        <span className="mono" style={{ fontSize: 11, color: "#7A8699" }}>ENCOUNTER {i + 1}/{seq.length}</span>
+      </div>
+      {enc.kind === "stage" ? (
+        <BattleStage stage={enc.stage} accent="#6A3FA0" picked={picked} tag={enc.stage.tag} isLast={i + 1 >= seq.length}
+          onPick={pick} onNext={advance} />
+      ) : (
+        <div className="panel" style={{ padding: 18 }}>
+          <span className="chip" style={{ background: "#2E6DB41E", color: "#2E6DB4", marginBottom: 10, display: "inline-block" }}>ZURG JAMS YOUR SYSTEMS — {enc.cert} PBQ TO RESTORE CONTROL</span>
+          <PBQRenderer key={"z" + i} pbq={enc.pbq} onScore={(s) => {
+            setPbqScored(true);
+            if (s >= 0.99) SFX.correct(); else SFX.hit();
+            m.damage = clamp(m.damage + Math.round((1 - s) * 15));
+            m.reputation = clamp(m.reputation + (s >= 0.8 ? 3 : -6));
+            setMForce((x) => x + 1);
+            update((p) => { if (s >= 0.99) { p.streak += 1; p.xp += 50; } else { p.streak = 0; p.xp += Math.round(s * 30); } return p; });
+          }} />
+          {pbqScored && <button className="btn primary" style={{ width: "auto", marginTop: 16 }} onClick={advance}>{i + 1 >= seq.length ? "End the battle →" : "The battle rages on →"}</button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
