@@ -21,12 +21,12 @@
    breaks, you just do not get cross-device sync.
    ===================================================================== */
 window.FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyACwcdvQ3v0IriAs9ek66eLsnn3EXNdT-8",
+  authDomain: "star-command-security-training.firebaseapp.com",
+  projectId: "star-command-security-training",
+  storageBucket: "star-command-security-training.firebasestorage.app",
+  messagingSenderId: "875432624427",
+  appId: "1:875432624427:web:d9a251adbb9bafdb91c56e"
 };
 
 /* Recommended Firestore security rule so each user can only read/write
